@@ -82,5 +82,5 @@ WHERE department = '영업';
 
 -- 정답:
 DELETE FROM employees
-WHERE salary <3000000;
+WHERE salary <=3200000;
 
