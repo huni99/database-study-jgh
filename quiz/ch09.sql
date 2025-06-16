@@ -98,12 +98,34 @@ WHERE score > (
 -- 여러 행 또는 여러 컬럼을 반환하면 SQL이 어떤 값을 선택해야 할 지 몰라 에러 발생
 
 -- 모든 결제 정보에 대한 평균 결제 금액과의 차이는?
-SELECT  payment_type '결제 유형',amount- (SELECT AVG(amount) FROM payments) 
-FROM payments ;
+SELECT 
+	payment_type AS '결제 유형',
+    amount AS '결제 금액',
+    amount - (평균결제금액) AS '평균 결제 금액과의 차이'
+FROM payments;
 
+-- Quiz: 평균 결제 금액
+SELECT AVG(amount)
+FROM payments;
+
+-- () 괄호 안에 넣기
+SELECT 
+	payment_type AS '결제 유형',
+    amount AS '결제 금액',
+    amount - (SELECT AVG(amount) FROM payments) AS '평균 결제 금액과의 차이'
+FROM payments;
 
 -- 잘못된 사용 예
-SELECT  payment_type '결제 유형',amount- (SELECT AVG(amount),'123' FROM payments) 
-FROM payments ;
+SELECT 
+	payment_type AS '결제 유형',
+    amount AS '결제 금액',
+    amount - (SELECT AVG(amount), '123' FROM payments) AS '평균 결제 금액과의 차이'
+FROM payments;
 
--- 평균 결제 금액
+
+
+
+
+
+
+
