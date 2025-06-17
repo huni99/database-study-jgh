@@ -122,10 +122,80 @@ SELECT
     amount - (SELECT AVG(amount), '123' FROM payments) AS '평균 결제 금액과의 차이'
 FROM payments;
 
+-- FROM 절에서의 서브쿼리
+-- NxM 반환하는 행과 컬럼의 개수에 제한이 없음
+-- 단, 서브쿼리에 별칭 지정 필수 
+
+-- 1회 주문 시 평균 상품 개수는?(장바구니 상품 포함)
+-- 주문별(order_id)로 그룹화 - > count 집계: SUM() -> 재집계: AVG()
+
+SELECT SUM(count)
+FROM order_details
+GROUP BY order_id;
 
 
+-- 메인 쿼리 : 1회 주문 시 평균 상품 개수 집계
+
+SELECT AVG(total_count) '1회 주문 시 평균 상품 개수'
+FROM (
+	SELECT SUM(count) total_count -- 집계 함수 결과에 별칭 필수(컬럼명이 아니라 계산된 값을 반환하기 때문에)
+	FROM order_details
+	GROUP BY order_id
+) AS ad; -- 별칭 필수( AS는 생략 가능)
+
+-- 3. JOIN 절에서의 서브쿼리
+-- NxM 반환하는 행과 컬럼의 개수에 제한이 없음
+-- 단, 서브쿼리에 별칭 지정 필수
+
+-- 상품별 주문 개수를 '배송 완료'와 ' 장바구니' 에 상관없이 상품명과 주문 개수를 조회한다면?
+SELECT name ,total_count
+FROM products
+JOIN (SELECT SUM(count) as total_count , product_id
+FROM order_details
+GROUP BY product_id) jo ON product_id = products.id;
+
+-- (참고) 다른 방법: 일단 JOIN 해두고 그룹화 및 집계
+
+SELECT SUM(count),  name
+FROM products
+JOIN order_details ON order_details.product_id= products.id
+GROUP BY name;
 
 
+-- 4. WHERE 절에서의 서브쿼리
+-- 1x1 ,Nx1 반환하는 서브쿼리만 사용 가능
+-- (필터링의 조건으로 값 또는 값의 목록을 사용하기 때문에)
 
+-- 평균 가격보다 비싼 상품을 조회하려면?
 
+SELECT name , price
+FROM products
+WHERE price> (SELECT AVG(price)
+							FROM products	
+							);
+-- 평균 가격을 서브쿼리로 구해서 넣으면 됨
 
+-- 5. HAVING 절에서의 서브쿼리
+-- 1x1, Nx1 반환하는 서브쿼리만 사용 가능
+-- (필터링의 조건으로 값 또는 값의 목록을 사용하기 때문에)
+
+-- 크림 치즈보다 매출이 높은 상품은? (장바구니 상품 포함)
+-- 상품x 주문상세 조인해서 --> 상품명으로 그룹화 -> 상품별로 매출을 집계
+-- 메인 쿼리 : 전체 상품의 매출을 조회 -> 크림 치즈보다 매출이 높은 상품 조회로 변경
+SELECT name , SUM(price*count)
+FROM products
+JOIN order_details ON order_details.product_id = products.id
+GROUP BY name 
+HAVING SUM(price*count) > ( 
+	SELECT SUM(price* count) 
+	FROM products
+	JOIN order_details ON order_details.product_id = products.id 
+	WHERE name= '크림 치즈');
+
+	-- Quiz
+-- 2. 다음 설명이 맞으면 O, 틀리면 X를 표시하세요.
+-- ① SELECT 절의 서브쿼리는 단일 값만 반환해야 한다. (  )
+-- ② FROM 절과 J0IN 절의 서브쿼리는 별칭을 지정해야 한다. (  )
+-- ③ WHERE 절과 HAVING 절의 서브쿼리는 단일 값 또는 다중 행의 단일 칼럼을 반환할 수 있다. (  )
+
+-- 정답: o o o
