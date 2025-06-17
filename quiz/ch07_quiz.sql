@@ -163,6 +163,8 @@ LEFT JOIN member_profiles ON members.id = member_profiles.member_id;
 -- 회원과 같은 이름을 가진 직원의 이름과 역할을 조회하세요.
 
 -- 정답:
+-- 관계 설정 없이도 JOIN을 할 수 있다는 것을 보여줌
+-- 일반적으로는 관계 있는 테이블끼리 JOIN을 수행
 SELECT library_staff.name, role
 FROM library_staff
 JOIN members ON members.name= library_staff.name;
