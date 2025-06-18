@@ -199,3 +199,134 @@ HAVING SUM(price*count) > (
 -- ③ WHERE 절과 HAVING 절의 서브쿼리는 단일 값 또는 다중 행의 단일 칼럼을 반환할 수 있다. (  )
 
 -- 정답: o o o
+
+/*
+9.3 IN, ANY, ALL, EXISTS
+*/
+-- 주로 WHERE 절에서의 서브쿼리와 쓰임
+
+-- 1. IN 연산자
+-- 괄호 사이 목록에 포함되는 대상을 찾음
+
+-- 형식
+컬럼명 IN (쉼표로_구분된_값_목록);
+-- 또는
+컬럼명 IN (다중_행의 단일 _컬럼을_반환하는_서브쿼리);
+
+-- IN 연산자 사용 예1 : 값 목록을 입력받는 경우
+-- 상품명이 '우유 식빵', '크림 치즈' 인 대상의 id 목록은?
+SELECT id
+FROM products
+WHERE name IN('우유 식빵','크림 치즈');
+
+-- - IN 연산자 사용 예2: 서브쿼리를 입력받는 경우
+-- '우유 식빵','크림 치즈'를 포함하는 모든 주문의 상세 내역
+SELECT * FROM order_details
+WHERE product_id IN (
+	-- 서브쿼리: 우유 식빵과 크림 치즈의 아이디를 반환(Nx1)
+	SELECT id
+	FROM products
+	WHERE name IN('우유 식빵','크림 치즈'));
+
+-- IN 연산자 사용 예3 : 조인과 IN 연산자
+-- '우유 식빵','크림 치즈'를 주문한 사용자의 아이디와 닉에임은?
+-- users에 products를 바로 붙일 수 없으므로 orders와 order_details을 붙여 연결
+
+SELECT u.id , nickname
+FROM users u
+JOIN orders o ON u.id = o.user_id
+JOIN order_details od ON od.order_id =o.id
+JOIN products p ON od.product_id= p.id
+WHERE name IN ('우유 식빵','크림 치즈');
+
+-- 2. ANY 연산자
+-- 지정된 집합의 모든 요소와 비교 연산을 수행하여 하나라도 만족하는 대상을 찾음
+
+--형식
+-- 컬럼명 비교_연산자 ANY (다중_행의_단일_컬럼을_반환하는_서브쿼리);
+
+-- '우유 식빵'이나 '플레인 베이글' 보다 저렴한 상품 목록은?
+-- 메인쿼리
+SELECT * 
+FROM products
+WHERE price < ANY (
+		SELECT price
+		FROM products
+		WHERE name IN ('우유 식빵','플레인 베이글')
+);
+-- 3. ALL 연산자
+-- 지정된 집합의 모든 요소와 비교 연산을 수행햐여 모두를 만족하는 대상을 찾음
+
+--형식
+-- 컬럼명 비교_연산자 ANY (다중_행의_단일_컬럼을_반환하는_서브쿼리);
+
+-- '우유 식빵'이나 '플레인 베이글' 보다 비싼 상품 목록은?
+-- 메인쿼리
+SELECT * 
+FROM products
+WHERE price > ALL (
+		SELECT price
+		FROM products
+		WHERE name IN ('우유 식빵','플레인 베이글')
+); -- 결과적으로 2900원 보다 큰 모든 상품이 조회
+
+-- 4. EXISTS 연산자
+-- 입력받은 서브쿼리가 하나 이상의 행을 반환하는 경우 TRUE, 그렇지 않으면 FALSE를 반환
+
+--형식
+
+SELECT 컬럼명1, 컬럼명2
+FROM 테이블명
+WHERE EXISTS (서브쿼리);
+
+-- 적어도 1번 이상 주문한 사용자를 조회하려면?
+-- 메인쿼리
+
+SELECT *
+FROM users u
+WHERE EXISTS (
+	-- 서브 쿼리 : 주문자 아이다가 사용자 테이블에 있다면 1 반환
+	SELECT  1 -- *: 굳이 모든 컬럼을 다 가져오는 것보다 1만 써주는게 효율적
+	FROM orders o
+	WHERE o.user_id = u.id -- 이렇게 서브쿼리가 메인쿼리의 특정 값을 참조하는 쿼리를 '상관 커리'라고함
+);
+-- (참고) 상관 쿼리의 동작 원리
+-- users 테이블 1번 사용자의 주문이 있는지 
+-- orders 테이블을 반복하며 확인, 이씅면 결과 테이블에 1 반환
+-- 같은 방식으로 2번 사용자, 3번 사용자도 확인
+-- EXISTS는 결과가 하나라도 존재하면 TRUE가 되기 때문에, 매칭되는 레코드를 찾으면 더이상 검사하지 않음
+
+-- (참고) 상관 쿼리의 특징
+-- 1) 의존성: 서브쿼리는 메인쿼리의 값을 참조해 데이터 필터링을 수행
+-- 2) 반복 실행: 서브쿼리는 메인쿼리의 각 행에 대해 반복적으로 실행됨
+-- 3) 성능 저하: 메인쿼리의 각 행마다 서브쿼리를 실행하므로 쿼리 전체의 성능이 저하될 수 있음(특히 데이터 양이 많을 경우)
+
+-- NOT EXISTS 연산자 실습
+-- 'COCOA PAY'로 결제하지 않은 사용자를 조회하려면?
+-- 메인쿼리
+
+SELECT *
+FROM users u 
+WHERE NOT EXISTS (
+	SELECT 1 
+	FROM payments
+	JOIN orders ON payments.order_id= orders.id
+	WHERE orders.user_id=u.id AND payment_type='COCOA PAY'
+);
+-- 의미: 주문과 결제 테이블에서 COCOA PAY를 사용한 사용자가 있다면 그 놈을 제외한 사용자를 뽑아줘
+
+-- Quiz
+-- 3. 다음 빈칸에 들어갈 용어를 고르세요.
+-- ① __________: 지정된 집합에 포함되는 대상을 찾음
+-- ② __________: 별칭을 지정하는 키워드로, 생략하고 사용할 수 있음
+-- ③ __________: 지정된 집합의 모든 요소와 비교 연산을 수행해 하나라도 만족하는 대상을 찾음
+-- ④ __________: 지정된 집합의 모든 요소와 비교 연산을 수행해 모두를 만족하는 대상을 찾음
+-- ⑤ __________: 서브쿼리를 입력받아 서브쿼리가 하나 이상의 행을 반환할 경우 TRUE, 그렇지 않으면 FALSE 반환
+
+-- (ㄱ) AS
+-- (ㄴ) ANY
+-- (ㄷ) IN
+-- (ㄹ) ALL
+-- (ㅁ) EXISTS
+
+-- 정답:  ㄷ ㄱ ㄴ ㄹ ㅁ
